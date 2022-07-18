@@ -376,6 +376,12 @@ public:
 
     bool isInMircastWidget(const QPoint &);
 
+    /**
+     * @brief updateMircastWidget 更新投屏窗口位置
+     * @param p 移动位置点
+     */
+    void updateMircastWidget(QPoint p);
+
     VolumeSlider *volumeSlider()
     {
         return m_pVolSlider;
@@ -425,6 +431,8 @@ signals:
       * @brief 功能不支持信号
       */
     void sigUnsupported();
+
+    void sigMircastState(int, QString);
 
 protected slots:
     /**

@@ -53,6 +53,9 @@ public:
 public:
     ExitButton(QWidget *parent = nullptr);
 
+signals:
+    void exitMircast();
+
 protected:
     void enterEvent(QEvent *pEvent) override;
     void leaveEvent(QEvent *pEvent) override;
@@ -73,12 +76,17 @@ public:
 
     void setDeviceName(QString);
 
+signals:
+    void exitMircast();
+
+private:
+    QString customizeText(QString name);
+
 private:
     QGraphicsSvgItem *m_pBgSvgItem;
     QGraphicsScene *m_pScene;
+    QGraphicsTextItem *m_deviceName;
     QSvgRenderer *m_pBgRender;    ///背景render
-
-    QString m_deviceName;
 };
 
 #endif  //MIRCASTSHOWWIDGET_H

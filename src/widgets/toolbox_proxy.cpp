@@ -913,7 +913,6 @@ ToolboxProxy::ToolboxProxy(QWidget *mainWindow, PlayerEngine *proxy)
     m_pPreviewTime = new SliderTime;
     m_pPreviewTime->hide();
     m_mircastWidget = new MircastWidget(mainWindow, proxy);
-    m_mircastWidget->move(0, 300);
     m_mircastWidget->hide();
 
     setup();
@@ -1225,6 +1224,7 @@ void ToolboxProxy::setup()
     m_pMircastBtn->setAccessibleName(MIRVAST_BUTTON);
 
     connect(m_pMircastBtn, &DIconButton::clicked, m_mircastWidget, &MircastWidget::togglePopup);
+    connect(m_mircastWidget, &MircastWidget::mircastState, this, &ToolboxProxy::sigMircastState);
 
     _right->addWidget(m_pMircastBtn);
     _right->addSpacing(10);
@@ -1837,6 +1837,11 @@ bool ToolboxProxy::isInMircastWidget(const QPoint &p)
     if (!m_mircastWidget->isVisible())
         return false;
     return m_mircastWidget->geometry().contains(p);
+}
+
+void ToolboxProxy::updateMircastWidget(QPoint p)
+{
+    m_mircastWidget->move(p.x() - m_mircastWidget->width(), p.y() - m_mircastWidget->height() - 10);
 }
 /**
  * @brief volumeUp 鼠标滚轮增加音量

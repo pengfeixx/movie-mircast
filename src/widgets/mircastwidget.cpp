@@ -2,7 +2,6 @@
 #include "dlna/cssdpsearch.h"
 #include "dlna/getdlnaxmlvalue.h"
 #include "dlna/dlnacontentserver.h"
-#include "dlna/cdlnasoappost.h"
 #include <QVBoxLayout>
 #include <QListWidget>
 #include <QAbstractListModel>
@@ -15,6 +14,7 @@
 #define MIRCASTWIDTH 240
 #define MIRCASTHEIGHT 188
 #define REFRESHTIME 20000
+#define MAXMIRCAST 5
 
 MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
 : DFloatingWidget(mainWindow), m_pEngine(pEngine)
@@ -25,8 +25,12 @@ MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
     m_searchTime.setSingleShot(true);
     connect(&m_searchTime, &QTimer::timeout, this, &MircastWidget::slotSearchTimeout);
 
+    m_mircastTimeOut.setSingleShot(true);
+    connect(&m_mircastTimeOut, &QTimer::timeout, this, &MircastWidget::slotMircastTimeout);
+
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
     setLayout(mainLayout);
     setContentsMargins(0, 0, 0, 0);
 
@@ -43,13 +47,20 @@ MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
     refreshBtn->move(206, 8);
     connect(refreshBtn, &DPushButton::clicked, this, &MircastWidget::slotRefreshBtnClicked);
 
+    QFrame *spliter = new QFrame(this);
+    spliter->setAutoFillBackground(true);
+    spliter->setPalette(QPalette(QColor(0, 0, 0, 13)));
+    spliter->setFixedSize(MIRCASTWIDTH, 2);
+    mainLayout->addWidget(spliter);
+
     m_hintWidget = new QWidget(this);
     mainLayout->addWidget(m_hintWidget);
+    m_hintWidget->setFixedSize(MIRCASTWIDTH, MIRCASTHEIGHT - 42);
     QVBoxLayout *hintLayout = new QVBoxLayout(m_hintWidget);
     m_hintWidget->setLayout(hintLayout);
 
     m_hintLabel = new DLabel(this);
-    m_hintLabel->setAlignment(Qt::AlignCenter);
+    m_hintLabel->setAlignment(Qt::AlignVCenter);
     m_hintLabel->setFixedSize(MIRCASTWIDTH, MIRCASTHEIGHT - 42);
     m_hintLabel->setWordWrap(true);
     hintLayout->addWidget(m_hintLabel);
@@ -73,8 +84,10 @@ MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
     m_mircastArea->setWidget(m_listWidget);
     mainLayout->addWidget(m_mircastArea);
     m_mircastArea->hide();
+    m_dlnaContentServer = nullptr;
     m_search = new CSSDPSearch(this);
     m_pDlnaSoapPost = new CDlnaSoapPost(this);
+    connect(m_pDlnaSoapPost, &CDlnaSoapPost::sigGetPostionInfo, this, &MircastWidget::slotGetPositionInfo);
 }
 
 
@@ -106,10 +119,34 @@ void MircastWidget::slotSearchTimeout()
         updateMircastState(MircastState::ListExhibit);
 }
 
+void MircastWidget::slotMircastTimeout()
+{
+    m_pDlnaSoapPost->SoapOperPost(DLNA_GetPositionInfo, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl);
+}
+
+void MircastWidget::slotGetPositionInfo(DlnaPositionInfo info)
+{
+    //debug
+    emit mircastState(0, m_devicesList.at(0));
+
+//    if (info.sRelTime.toInt()) {
+//        emit mircastState(0);
+//    } else {
+//        qWarning() << "mircast failed!";
+//        m_mircastTimeOut.start(1000);
+//        emit mircastState(-1);
+//    }
+}
+
 void MircastWidget::slotConnectDevice(QModelIndex index)
 {
     int ind = index.row();
     pauseDlnaTp();
+}
+
+void MircastWidget::slotStartMircast()
+{
+    startDlnaTp();
 }
 
 void MircastWidget::searchDevices()
@@ -164,11 +201,12 @@ void MircastWidget::createListeItem(QString name, const QByteArray &data, const 
     QHBoxLayout *itemLayout = new QHBoxLayout;
     itemWidget->setLayout(itemLayout);
     DLabel *deviceName = new DLabel(itemWidget);
+    deviceName->setObjectName("ItemTextLabel");
     deviceName->setText(name);
     itemLayout->addWidget(deviceName);
 
     DPushButton *connectBtn = new DPushButton(itemWidget);
-    connect(connectBtn, &DPushButton::clicked, this, &MircastWidget::startDlnaTp);
+    connect(connectBtn, &DPushButton::clicked, this, &MircastWidget::slotStartMircast);
     connectBtn->setFixedSize(24, 24);
     itemLayout->addWidget(connectBtn);
 
@@ -276,6 +314,8 @@ void MircastWidget::startDlnaTp()
         m_pDlnaSoapPost->SoapOperPost(DLNA_Stop, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl);
         btn->setText(btn->property(friendlyNamePro).toString());
     }
+
+    m_mircastTimeOut.start(1000);
 }
 
 void MircastWidget::pauseDlnaTp()

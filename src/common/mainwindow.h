@@ -412,7 +412,14 @@ public slots:
     void slotVolumeChanged(int nVolume);
     void slotWMChanged(QString msg);
     void slotMediaError();
-    void slotMircastSuccess();
+    /**
+     * @brief slotUpdateMircastState 更新投屏状态槽函数
+     * @param state 投屏状态
+     */
+    void slotUpdateMircastState(int state, QString msg);
+    /**
+     * @brief slotExitMircast 退出投屏槽函数
+     */
     void slotExitMircast();
 
 protected:
@@ -505,6 +512,11 @@ private:
     void setPlaySpeedMenuChecked(ActionFactory::ActionKind);
     void setPlaySpeedMenuUnchecked();
     void setMusicShortKeyState(bool bState);
+    /**
+     * @brief mircastSuccess 投屏成功更新界面
+     */
+    void mircastSuccess(QString name);
+    void exitMircast();
 
 private:
     MessageWindow *m_pPopupWid;                     ///截图提示窗口

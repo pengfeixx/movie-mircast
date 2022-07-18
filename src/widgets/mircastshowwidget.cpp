@@ -56,7 +56,6 @@ MircastShowWidget::MircastShowWidget(QWidget *parent)
 
     setAlignment(Qt::AlignCenter);
     setFrameShape(QFrame::Shape::NoFrame);
-    setAttribute(Qt::WA_TransparentForMouseEvents, true);
     setMouseTracking(true);
 
     m_pScene = new QGraphicsScene;
@@ -74,18 +73,17 @@ MircastShowWidget::MircastShowWidget(QWidget *parent)
     ExitButton *exitBtn = new ExitButton();
     exitBtn->move((m_pScene->width() - exitBtn->width()) / 2, (m_pScene->height() - exitBtn->height()) / 2);
     exitBtn->show();
+    connect(exitBtn, &ExitButton::exitMircast, this, &MircastShowWidget::exitMircast);
 
-    m_deviceName = "1111111111111111";
-    QGraphicsTextItem *deviceName = new QGraphicsTextItem;
-    deviceName->setDefaultTextColor(Qt::white);
-    deviceName->setPlainText(m_deviceName);
-    deviceName->setTextWidth(390);
+    m_deviceName = new QGraphicsTextItem;
+    m_deviceName->setDefaultTextColor(Qt::white);
+    m_deviceName->setTextWidth(390);
     QTextBlockFormat format;
     format.setAlignment(Qt::AlignCenter);
-    QTextCursor cursor = deviceName->textCursor();
+    QTextCursor cursor = m_deviceName->textCursor();
     cursor.mergeBlockFormat(format);
-    deviceName->setTextCursor(cursor);
-    deviceName->setPos(m_pBgSvgItem->pos().x() + 10, m_pBgSvgItem->pos().y() - 20);
+    m_deviceName->setTextCursor(cursor);
+    m_deviceName->setPos(m_pBgSvgItem->pos().x() + 10, m_pBgSvgItem->pos().y() - 20);
 
     QGraphicsTextItem *promptInformation = new QGraphicsTextItem;
     promptInformation->setDefaultTextColor(QColor(255, 255, 255, 153));
@@ -95,7 +93,7 @@ MircastShowWidget::MircastShowWidget(QWidget *parent)
     promptInformation->setPos(m_pBgSvgItem->pos().x() + 93, m_pBgSvgItem->pos().y() + 297);
 
     m_pScene->addItem(m_pBgSvgItem);
-    m_pScene->addItem(deviceName);
+    m_pScene->addItem(m_deviceName);
     m_pScene->addItem(promptInformation);
     m_pScene->addWidget(exitBtn);
 }
@@ -107,7 +105,18 @@ MircastShowWidget::~MircastShowWidget()
 
 void MircastShowWidget::setDeviceName(QString name)
 {
-    m_deviceName = QString("Display device:%1").arg(name);
+    QString display = QString("Display device:%1").arg(name);
+    m_deviceName->setPlainText(customizeText(display));
+    QTextBlockFormat format;
+    format.setAlignment(Qt::AlignCenter);
+    QTextCursor cursor = m_deviceName->textCursor();
+    cursor.mergeBlockFormat(format);
+    m_deviceName->setTextCursor(cursor);
+}
+
+QString MircastShowWidget::customizeText(QString name)
+{
+    return name > 20 ? name.left(20) + QString("...") : name;
 }
 
 ExitButton::ExitButton(QWidget *parent)
@@ -126,22 +135,33 @@ ExitButton::ExitButton(QWidget *parent)
 
 void ExitButton::enterEvent(QEvent *pEvent)
 {
-
+    Q_UNUSED(pEvent);
+    m_state = Hover;
+    update();
 }
 
 void ExitButton::leaveEvent(QEvent *pEvent)
 {
-
+    Q_UNUSED(pEvent);
+    m_state = Normal;
+    update();
 }
 
 void ExitButton::mousePressEvent(QMouseEvent *pEvent)
 {
-
+    Q_UNUSED(pEvent);
+    m_state = Press;
+    m_svgWidget->load(QString(":/resources/icons/mircast/icon-exit pressed.svg"));
+    update();
 }
 
 void ExitButton::mouseReleaseEvent(QMouseEvent *pEvent)
 {
-
+    Q_UNUSED(pEvent);
+    emit exitMircast();
+    m_state = Normal;
+    m_svgWidget->load(QString(":/resources/icons/mircast/icon-exit normal.svg"));
+    update();
 }
 
 void ExitButton::paintEvent(QPaintEvent *pEvent)
@@ -151,16 +171,22 @@ void ExitButton::paintEvent(QPaintEvent *pEvent)
     painter.setRenderHint(QPainter::Antialiasing);
     QPainterPath path;
     path.addEllipse(rect());
-    QBrush brush(Qt::black);
+    QLinearGradient linearGradient(0, rect().width() / 2, rect().height(), rect().width() / 2);
 
     switch (m_state) {
     case ButtonState::Normal:
-        brush.setColor(Qt::red);
+        linearGradient.setColorAt(0, QColor(72, 72, 72));
+        linearGradient.setColorAt(0, QColor(65, 65, 65));
         break;
     case ButtonState::Hover:
+        linearGradient.setColorAt(0, QColor(114, 114, 114));
+        linearGradient.setColorAt(0, QColor(83, 83, 83));
         break;
     case ButtonState::Press:
+        linearGradient.setColorAt(0, QColor(36, 36, 36));
+        linearGradient.setColorAt(0, QColor(40, 40, 40));
         break;
     }
+    QBrush brush(linearGradient);
     painter.fillPath(path, brush);
 }

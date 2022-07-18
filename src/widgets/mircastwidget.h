@@ -40,6 +40,8 @@
 #include <QTimer>
 #include <QScrollArea>
 
+#include "dlna/cdlnasoappost.h"
+
 DWIDGET_USE_NAMESPACE
 
 class QNetworkReply;
@@ -68,14 +70,17 @@ public slots:
 private slots:
     void slotRefreshBtnClicked();
     void slotSearchTimeout();
+    void slotMircastTimeout();
+    void slotGetPositionInfo(DlnaPositionInfo info);
     void slotConnectDevice(QModelIndex);
-    void startDlnaTp();
+    void slotStartMircast();
     void pauseDlnaTp();
     void playDlnaTp();
     void seekDlnaTp(int nSeek);
     void getPosInfoDlnaTp();
 signals:
     void closeServer();
+    void mircastState(int state, QString msg);
 private:
     /**
      * @brief searchDevices 刷新查找设备
@@ -90,6 +95,8 @@ private:
     //初始化http Sever
     void initializeHttpServer(int port = 9999);
 
+    void startDlnaTp();
+
 private:
     QWidget     *m_hintWidget;
     DLabel      *m_hintLabel;
@@ -100,6 +107,7 @@ private:
     CSSDPSearch *m_search;
 
     QTimer          m_searchTime;
+    QTimer          m_mircastTimeOut;
     QList<QString>  m_devicesList;
     //投屏http服务，支持http断点续传请求
     DlnaContentServer *m_dlnaContentServer;

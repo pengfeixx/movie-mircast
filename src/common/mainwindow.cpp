@@ -954,6 +954,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_pMircastShowWidget = new MircastShowWidget(this);
     m_pMircastShowWidget->hide();
+    connect(m_pToolbox, &ToolboxProxy::sigMircastState, this, &MainWindow::slotUpdateMircastState);
+    connect(m_pMircastShowWidget, &MircastShowWidget::exitMircast, this, &MainWindow::slotExitMircast);
 
     qDBusRegisterMetaType<SessionInfo>();
     qDBusRegisterMetaType<SessionInfoList>();
@@ -2731,6 +2733,7 @@ void MainWindow::updateProxyGeometry()
                             rect().width() - 10, TOOLBOX_HEIGHT);
             }
             m_pToolbox->setGeometry(rfs);
+            m_pToolbox->updateMircastWidget(rfs.topRight());
         }
 
         if (m_pPlaylist && !m_pPlaylist->toggling()) {
@@ -3137,16 +3140,18 @@ void MainWindow::slotMediaError()
     m_pEngine->playlist().remove(m_pEngine->playlist().current());
 }
 
-void MainWindow::slotMircastSuccess()
+void MainWindow::mircastSuccess(QString name)
 {
     if (m_pEngine->state() == PlayerEngine::Playing)
-        m_pEngine->paused();
+        m_pEngine->pauseResume();
+    m_pMircastShowWidget->setDeviceName(name);
     m_pMircastShowWidget->show();
 }
 
-void MainWindow::slotExitMircast()
+void MainWindow::exitMircast()
 {
-
+    m_pEngine->pauseResume();
+    m_pMircastShowWidget->hide();
 }
 
 void MainWindow::checkErrorMpvLogsChanged(const QString sPrefix, const QString sText)
@@ -4443,6 +4448,18 @@ void MainWindow::slotInvalidFile(QString strFileName)
        showTime = showTime - 1000;
        m_pCommHintWid->updateWithMessage(QString(tr("Invalid file: %1").arg(strFileName)));
     });
+}
+
+void MainWindow::slotUpdateMircastState(int state, QString msg)
+{
+    if (state == 0) {
+        mircastSuccess(msg);
+    }
+}
+
+void MainWindow::slotExitMircast()
+{
+    exitMircast();
 }
 
 void MainWindow::updateGeometry(CornerEdge edge, QPoint pos)
