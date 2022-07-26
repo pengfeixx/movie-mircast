@@ -54,18 +54,29 @@ class MircastWidget: public DFloatingWidget
 {
     Q_OBJECT
 public:
-    enum MircastState {
+    enum SearchState {
         Searching,
         ListExhibit,
         NoDevices,
     };
+
+    enum MircastState {
+        Connecting,
+        Screening,
+        Idel,
+    };
+
 public:
     MircastWidget(QWidget *mainWindow = nullptr, void *pEngine = nullptr);
 //    virtual ~MircastWidget() override;
 
+    MircastState getMircastState();
+
 public slots:
     void togglePopup();
     void slotReadyRead();
+    void slotExitMircast();
+    void slotSeekMircast(int);
 
 private slots:
     void slotRefreshBtnClicked();
@@ -77,10 +88,12 @@ private slots:
     void pauseDlnaTp();
     void playDlnaTp();
     void seekDlnaTp(int nSeek);
+    void stopDlnaTP();
     void getPosInfoDlnaTp();
 signals:
     void closeServer();
     void mircastState(int state, QString msg);
+    void updateTime(int time);
 private:
     /**
      * @brief searchDevices 刷新查找设备
@@ -89,13 +102,15 @@ private:
     /**
      * @brief updateMircastState 更新投屏窗口状态
      */
-    void updateMircastState(MircastState state);
+    void updateMircastState(SearchState state);
 
     void createListeItem(QString, const QByteArray &data, const QNetworkReply*);
     //初始化http Sever
     void initializeHttpServer(int port = 9999);
 
     void startDlnaTp();
+
+    int timeConversion(QString);
 
 private:
     QWidget     *m_hintWidget;
@@ -105,6 +120,8 @@ private:
 //    MircastDevidesModel *m_mircastModel;
     QListWidget *m_listWidget;
     CSSDPSearch *m_search;
+    MircastState m_mircastState;
+    int          m_attempts;
 
     QTimer          m_searchTime;
     QTimer          m_mircastTimeOut;

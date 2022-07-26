@@ -922,6 +922,7 @@ ToolboxProxy::ToolboxProxy(QWidget *mainWindow, PlayerEngine *proxy)
             this, &ToolboxProxy::updatePlayState);
     connect(DApplicationHelper::instance(), &DApplicationHelper::themeTypeChanged,
             this, &ToolboxProxy::updateplaylisticon);
+    connect(m_mircastWidget, &MircastWidget::updateTime, this, &ToolboxProxy::updateMircastTime, Qt::QueuedConnection);
 }
 void ToolboxProxy::finishLoadSlot(QSize size)
 {
@@ -1224,7 +1225,7 @@ void ToolboxProxy::setup()
     m_pMircastBtn->setAccessibleName(MIRVAST_BUTTON);
 
     connect(m_pMircastBtn, &DIconButton::clicked, m_mircastWidget, &MircastWidget::togglePopup);
-    connect(m_mircastWidget, &MircastWidget::mircastState, this, &ToolboxProxy::sigMircastState);
+    connect(m_mircastWidget, &MircastWidget::mircastState, this, &ToolboxProxy::slotUpdateMircast);
 
     _right->addWidget(m_pMircastBtn);
     _right->addSpacing(10);
@@ -1633,6 +1634,8 @@ void ToolboxProxy::slotSliderReleased()
 {
     m_bMousePree = false;
     m_pEngine->seekAbsolute(m_pProgBar->slider()->sliderPosition());
+    if (m_mircastWidget->getMircastState() == MircastWidget::Screening)
+        m_mircastWidget->slotSeekMircast(m_pProgBar->slider()->sliderPosition());
 }
 
 void ToolboxProxy::slotBaseMuteChanged(QString sk, const QVariant &/*val*/)
@@ -2090,6 +2093,16 @@ void ToolboxProxy::updateFullState()
     }
 }
 
+void ToolboxProxy::slotUpdateMircast(int state, QString msg)
+{
+    emit sigMircastState(state, msg);
+    if (state == 0) {
+        m_pVolBtn->setButtonEnable(false);
+    } else {
+        m_pVolBtn->setButtonEnable(true);
+    }
+}
+
 void ToolboxProxy::updatePlayState()
 {
     if (m_pEngine->state() == PlayerEngine::CoreState::Playing) {
@@ -2393,6 +2406,29 @@ bool ToolboxProxy::eventFilter(QObject *obj, QEvent *ev)
     }
 
     return QObject::eventFilter(obj, ev);
+}
+
+void ToolboxProxy::updateMircastTime(int time)
+{
+    if (m_pProgBar_Widget->currentIndex() == 1) {              //进度条模式
+
+        if (!m_pProgBar->signalsBlocked()) {
+            m_pProgBar->blockSignals(true);
+        }
+
+        m_pProgBar->slider()->setSliderPosition(time);
+        m_pProgBar->slider()->setValue(time);
+        m_pProgBar->blockSignals(false);
+    } else {
+        m_pViewProgBar->setIsBlockSignals(true);
+        m_pViewProgBar->setValue(time);
+        m_pViewProgBar->setIsBlockSignals(false);
+    }
+    quint64 url = static_cast<quint64>(-1);
+    if (m_pEngine->playlist().current() != -1) {
+        url = static_cast<quint64>(m_pEngine->duration());
+    }
+    updateTimeInfo(url, time, m_pTimeLabel, m_pTimeLabelend, true);
 }
 
 void ToolboxProxy::updateToolTipTheme(ToolButton *btn)

@@ -14,7 +14,7 @@
 #define MIRCASTWIDTH 240
 #define MIRCASTHEIGHT 188
 #define REFRESHTIME 20000
-#define MAXMIRCAST 5
+#define MAXMIRCAST 3
 
 MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
 : DFloatingWidget(mainWindow), m_pEngine(pEngine)
@@ -22,10 +22,10 @@ MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
     qRegisterMetaType<DlnaPositionInfo>("DlnaPositionInfo");
     setFixedSize(MIRCASTWIDTH + 14, MIRCASTHEIGHT + 10);
     m_bIsToggling = false;
+    m_mircastState = Idel;
+    m_attempts = 0;
     m_searchTime.setSingleShot(true);
     connect(&m_searchTime, &QTimer::timeout, this, &MircastWidget::slotSearchTimeout);
-
-    m_mircastTimeOut.setSingleShot(true);
     connect(&m_mircastTimeOut, &QTimer::timeout, this, &MircastWidget::slotMircastTimeout);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
@@ -66,28 +66,35 @@ MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
     hintLayout->addWidget(m_hintLabel);
     m_hintLabel->hide();
 
-    m_mircastArea = new QScrollArea(this);
-    m_listWidget = new QListWidget(m_mircastArea);
-//    m_mircastModel = new MircastDevidesModel;
-//    MircastDevicesItem *mircastItem = new MircastDevicesItem;
-
-//    m_listWidget->setModel(m_mircastModel);
-//    m_listWidget->setItemDelegate(mircastItem);
-
+    m_listWidget = new QListWidget;
     m_listWidget->setFixedWidth(MIRCASTWIDTH);
     m_listWidget->setAttribute(Qt::WA_TranslucentBackground, true);
     m_listWidget->setFrameShape(QFrame::NoFrame);
-    m_listWidget->show();
     connect(m_listWidget, &QListWidget::doubleClicked, this, &MircastWidget::slotConnectDevice);
+    m_listWidget->show();
+
+    m_mircastArea = new QScrollArea;
     m_mircastArea->setFixedSize(MIRCASTWIDTH, 34 * 4);
-    m_mircastArea->setAttribute(Qt::WA_TranslucentBackground, true);
+    m_mircastArea->setFrameShape(QFrame::NoFrame);
+    m_mircastArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_mircastArea->setWidget(m_listWidget);
+
+//    m_mircastModel = new MircastDevidesModel;
+//    MircastDevicesItem *mircastItem = new MircastDevicesItem;
+//    m_listWidget->setModel(m_mircastModel);
+//    m_listWidget->setItemDelegate(mircastItem);
+
     mainLayout->addWidget(m_mircastArea);
     m_mircastArea->hide();
     m_dlnaContentServer = nullptr;
     m_search = new CSSDPSearch(this);
     m_pDlnaSoapPost = new CDlnaSoapPost(this);
-    connect(m_pDlnaSoapPost, &CDlnaSoapPost::sigGetPostionInfo, this, &MircastWidget::slotGetPositionInfo);
+    connect(m_pDlnaSoapPost, &CDlnaSoapPost::sigGetPostionInfo, this, &MircastWidget::slotGetPositionInfo, Qt::QueuedConnection);
+}
+
+MircastWidget::MircastState MircastWidget::getMircastState()
+{
+    return m_mircastState;
 }
 
 
@@ -114,9 +121,9 @@ void MircastWidget::slotSearchTimeout()
 {
     qInfo() << "search timeout!!";
     if (m_devicesList.isEmpty())
-        updateMircastState(MircastState::NoDevices);
+        updateMircastState(SearchState::NoDevices);
     else
-        updateMircastState(MircastState::ListExhibit);
+        updateMircastState(SearchState::ListExhibit);
 }
 
 void MircastWidget::slotMircastTimeout()
@@ -126,16 +133,28 @@ void MircastWidget::slotMircastTimeout()
 
 void MircastWidget::slotGetPositionInfo(DlnaPositionInfo info)
 {
-    //debug
-    emit mircastState(0, m_devicesList.at(0));
-
-//    if (info.sRelTime.toInt()) {
-//        emit mircastState(0);
-//    } else {
-//        qWarning() << "mircast failed!";
-//        m_mircastTimeOut.start(1000);
-//        emit mircastState(-1);
-//    }
+    if (m_mircastState == MircastState::Screening) {
+        int absTime = timeConversion(info.sAbsTime);
+        updateTime(absTime);
+        return;
+    }
+    if (timeConversion(info.sTrackDuration) > 0) {
+        emit mircastState(0, m_devicesList.at(0));
+        m_mircastState = MircastState::Screening;
+        m_attempts = 0;
+    } else {
+        qWarning() << "mircast failed!";
+        if (m_attempts >= MAXMIRCAST) {
+            qWarning() << "attempts time out! try next.";
+            m_attempts = 0;
+            m_mircastTimeOut.stop();
+            emit mircastState(-1, QString(""));
+        } else {
+            qInfo() << "mircast failed! curret attempts:" << m_attempts << "Max:" << MAXMIRCAST;
+            m_attempts++;
+            m_mircastState = Idel;
+        }
+    }
 }
 
 void MircastWidget::slotConnectDevice(QModelIndex index)
@@ -146,6 +165,8 @@ void MircastWidget::slotConnectDevice(QModelIndex index)
 
 void MircastWidget::slotStartMircast()
 {
+    if (m_mircastState == MircastState::Screening)
+        return;
     startDlnaTp();
 }
 
@@ -156,10 +177,10 @@ void MircastWidget::searchDevices()
     static_cast<QListWidget *>(m_mircastArea->widget())->clear();
     m_searchTime.start(REFRESHTIME);
     m_search->SsdpSearch();
-    updateMircastState(MircastState::Searching);
+    updateMircastState(SearchState::Searching);
 }
 
-void MircastWidget::updateMircastState(MircastWidget::MircastState state)
+void MircastWidget::updateMircastState(MircastWidget::SearchState state)
 {
     switch (state) {
     case Searching:
@@ -260,7 +281,19 @@ void MircastWidget::slotReadyRead()
 
 //    ui->textEdit->append(btn->property(controlURLPro).toString());
     createListeItem(sName, data, reply);
-    updateMircastState(MircastState::ListExhibit);
+    updateMircastState(SearchState::ListExhibit);
+}
+
+void MircastWidget::slotExitMircast()
+{
+    m_mircastState = Idel;
+    stopDlnaTP();
+    //    emit closeServer();
+}
+
+void MircastWidget::slotSeekMircast(int seek)
+{
+    seekDlnaTp(seek);
 }
 
 void MircastWidget::initializeHttpServer(int port)
@@ -306,16 +339,31 @@ void MircastWidget::startDlnaTp()
         qInfo() << "note: please start httpServer!";
         return;
     }
-    if(btn->text() != "Stop") {
+//    if(btn->text() != "Stop") {
         m_pDlnaSoapPost->SoapOperPost(DLNA_Stop, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl);
         m_pDlnaSoapPost->SoapOperPost(DLNA_SetAVTransportURI, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl);
-        btn->setText("Stop");
-    } else {
-        m_pDlnaSoapPost->SoapOperPost(DLNA_Stop, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl);
-        btn->setText(btn->property(friendlyNamePro).toString());
-    }
+//        btn->setText("Stop");
+//    } else {
+//        m_pDlnaSoapPost->SoapOperPost(DLNA_Stop, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl);
+//        btn->setText(btn->property(friendlyNamePro).toString());
+//    }
 
     m_mircastTimeOut.start(1000);
+    m_attempts++;
+}
+
+int MircastWidget::timeConversion(QString time)
+{
+    QStringList timeList = time.split(":");
+    if (timeList.size() == 3) {
+        int realTime = 0;
+        realTime += timeList.at(0).toInt() * 60 * 60;
+        realTime += timeList.at(1).toInt() * 60;
+        realTime += timeList.at(2).toInt();
+
+        return realTime;
+    }
+    return 0;
 }
 
 void MircastWidget::pauseDlnaTp()
@@ -331,6 +379,11 @@ void MircastWidget::playDlnaTp()
 void MircastWidget::seekDlnaTp(int nSeek)
 {
     m_pDlnaSoapPost->SoapOperPost(DLNA_Seek, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl, nSeek);
+}
+
+void MircastWidget::stopDlnaTP()
+{
+    m_pDlnaSoapPost->SoapOperPost(DLNA_Stop, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl);
 }
 
 void MircastWidget::getPosInfoDlnaTp()

@@ -705,6 +705,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(this, &MainWindow::frameMenuEnable, &ActionFactory::get(), &ActionFactory::frameMenuEnable);
     connect(this, &MainWindow::playSpeedMenuEnable, &ActionFactory::get(), &ActionFactory::playSpeedMenuEnable);
     connect(this, &MainWindow::subtitleMenuEnable, &ActionFactory::get(), &ActionFactory::subtitleMenuEnable);
+    connect(this, &MainWindow::soundMenuEnable, &ActionFactory::get(), &ActionFactory::soundMenuEnable);
     connect(qApp, &QGuiApplication::focusWindowChanged, this, &MainWindow::slotFocusWindowChanged);
 
     connect(m_pToolbox, &ToolboxProxy::sigVolumeChanged, this, &MainWindow::slotVolumeChanged);
@@ -1245,7 +1246,7 @@ void MainWindow::updateActionsState()
         case ActionFactory::ActionKind::ToggleMiniMode:
         case ActionFactory::ActionKind::ToggleFullscreen:
         case ActionFactory::ActionKind::WindowAbove:
-            bRet = m_pEngine->state() != PlayerEngine::Idle;
+            bRet = m_pEngine->state() != PlayerEngine::Idle && m_pToolbox->getMircast()->getMircastState() != MircastWidget::Screening;
             break;
         case ActionFactory::ActionKind::BurstScreenshot:
             if(!CompositingManager::isMpvExists()) {
@@ -3144,6 +3145,7 @@ void MainWindow::mircastSuccess(QString name)
 {
     if (m_pEngine->state() == PlayerEngine::Playing)
         m_pEngine->pauseResume();
+    updateActionsState();
     m_pMircastShowWidget->setDeviceName(name);
     m_pMircastShowWidget->show();
 }
@@ -3151,7 +3153,14 @@ void MainWindow::mircastSuccess(QString name)
 void MainWindow::exitMircast()
 {
     m_pEngine->pauseResume();
+    updateActionsState();
+    m_pToolbox->getMircast()->slotExitMircast();
     m_pMircastShowWidget->hide();
+}
+
+void MainWindow::updateMircastContextMenu(bool mircast)
+{
+
 }
 
 void MainWindow::checkErrorMpvLogsChanged(const QString sPrefix, const QString sText)
@@ -4454,12 +4463,20 @@ void MainWindow::slotUpdateMircastState(int state, QString msg)
 {
     if (state == 0) {
         mircastSuccess(msg);
+        emit frameMenuEnable(false);
+        emit playSpeedMenuEnable(false);
+        emit subtitleMenuEnable(false);
+        emit soundMenuEnable(false);
     }
 }
 
 void MainWindow::slotExitMircast()
 {
     exitMircast();
+    emit frameMenuEnable(true);
+    emit playSpeedMenuEnable(true);
+    emit subtitleMenuEnable(true);
+    emit soundMenuEnable(true);
 }
 
 void MainWindow::updateGeometry(CornerEdge edge, QPoint pos)

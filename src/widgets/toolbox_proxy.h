@@ -382,6 +382,11 @@ public:
      */
     void updateMircastWidget(QPoint p);
 
+    MircastWidget *getMircast()
+    {
+        return m_mircastWidget;
+    }
+
     VolumeSlider *volumeSlider()
     {
         return m_pVolSlider;
@@ -415,6 +420,8 @@ public slots:
      * @brief updateFullState 更新全屏状态下工具栏状态
      */
     void updateFullState();
+
+    void slotUpdateMircast(int, QString);
 
 signals:
     /**
@@ -571,6 +578,9 @@ protected:
      * @return 返回是否继续执行
      */
     bool eventFilter(QObject *obj, QEvent *ev) override;
+
+private slots:
+    void updateMircastTime(int);
 
 private:
     /**

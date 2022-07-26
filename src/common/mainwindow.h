@@ -249,6 +249,10 @@ signals:
      */
     void subtitleMenuEnable(bool);
     /**
+     * @brief soundMenuEnable 声音字幕是否可用信号
+     */
+    void soundMenuEnable(bool);
+    /**
      * @brief 窗口特效变化信号
      */
     void WMChanged(bool isWM);
@@ -517,6 +521,7 @@ private:
      */
     void mircastSuccess(QString name);
     void exitMircast();
+    void updateMircastContextMenu(bool mircast);
 
 private:
     MessageWindow *m_pPopupWid;                     ///截图提示窗口
