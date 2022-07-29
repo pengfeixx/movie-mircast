@@ -104,6 +104,8 @@ MircastWidget::MircastState MircastWidget::getMircastState()
 void MircastWidget::playNext()
 {
     if (m_mircastState != MircastState::Idel) {
+        PlayerEngine *engine =static_cast<PlayerEngine *>(m_pEngine);
+        engine->pauseResume();
         stopDlnaTP();
         startDlnaTp();
     }
@@ -147,9 +149,18 @@ void MircastWidget::slotGetPositionInfo(DlnaPositionInfo info)
 {
     if (m_mircastState == MircastState::Idel)
         return;
+
+    PlayerEngine *engine =static_cast<PlayerEngine *>(m_pEngine);
+    PlaylistModel *model = engine->getplaylist();
+    PlaylistModel::PlayMode playMode = model->playMode();
+
     if (m_mircastState == MircastState::Screening) {
         int absTime = timeConversion(info.sAbsTime);
         updateTime(absTime);
+        if (info.sAbsTime == info.sTrackDuration) {
+            m_mircastState = Connecting;
+            m_attempts = MAXMIRCAST;
+        }
         return;
     }
     if (timeConversion(info.sTrackDuration) > 0) {
@@ -162,9 +173,6 @@ void MircastWidget::slotGetPositionInfo(DlnaPositionInfo info)
             qWarning() << "attempts time out! try next.";
             m_attempts = 0;
             m_mircastTimeOut.stop();
-            PlayerEngine *engine =static_cast<PlayerEngine *>(m_pEngine);
-            PlaylistModel *model = engine->getplaylist();
-            PlaylistModel::PlayMode playMode = model->playMode();
             if (playMode == PlaylistModel::SinglePlay ||
                     (playMode == PlaylistModel::OrderPlay && model->current() == (model->count() - 1))) {
                 emit mircastState(-1, QString(""));

@@ -3148,6 +3148,7 @@ void MainWindow::mircastSuccess(QString name)
     updateActionsState();
     m_pMircastShowWidget->setDeviceName(name);
     m_pMircastShowWidget->show();
+    m_pToolbox->getMircast()->hide();
 }
 
 void MainWindow::exitMircast()
