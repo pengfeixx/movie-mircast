@@ -71,6 +71,7 @@ public:
 //    virtual ~MircastWidget() override;
 
     MircastState getMircastState();
+    void playNext();
 
 public slots:
     void togglePopup();

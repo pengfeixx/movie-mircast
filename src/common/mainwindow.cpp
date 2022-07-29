@@ -4467,6 +4467,8 @@ void MainWindow::slotUpdateMircastState(int state, QString msg)
         emit playSpeedMenuEnable(false);
         emit subtitleMenuEnable(false);
         emit soundMenuEnable(false);
+    } else if (state == -1) {
+        slotExitMircast();
     }
 }
 

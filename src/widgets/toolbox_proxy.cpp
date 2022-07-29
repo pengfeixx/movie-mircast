@@ -1669,6 +1669,7 @@ void ToolboxProxy::slotFileLoaded()
     m_pProgBar->slider()->setRange(0, static_cast<int>(m_pEngine->duration()));
     m_pProgBar_Widget->setCurrentIndex(1);
     update();
+    m_mircastWidget->playNext();
 }
 
 void ToolboxProxy::slotElapsedChanged()

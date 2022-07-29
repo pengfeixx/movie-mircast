@@ -1,20 +1,24 @@
 #include "mircastwidget.h"
+#include "player_engine.h"
 #include "dlna/cssdpsearch.h"
 #include "dlna/getdlnaxmlvalue.h"
 #include "dlna/dlnacontentserver.h"
+
 #include <QVBoxLayout>
 #include <QListWidget>
 #include <QAbstractListModel>
 #include <QNetworkReply>
 #include <QFileInfo>
 #include <QNetworkInterface>
+
 #include <DPushButton>
-#include "player_engine.h"
 
 #define MIRCASTWIDTH 240
 #define MIRCASTHEIGHT 188
 #define REFRESHTIME 20000
 #define MAXMIRCAST 3
+
+using namespace dmr;
 
 MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
 : DFloatingWidget(mainWindow), m_pEngine(pEngine)
@@ -97,6 +101,14 @@ MircastWidget::MircastState MircastWidget::getMircastState()
     return m_mircastState;
 }
 
+void MircastWidget::playNext()
+{
+    if (m_mircastState != MircastState::Idel) {
+        stopDlnaTP();
+        startDlnaTp();
+    }
+}
+
 
 void MircastWidget::togglePopup()
 {
@@ -133,6 +145,8 @@ void MircastWidget::slotMircastTimeout()
 
 void MircastWidget::slotGetPositionInfo(DlnaPositionInfo info)
 {
+    if (m_mircastState == MircastState::Idel)
+        return;
     if (m_mircastState == MircastState::Screening) {
         int absTime = timeConversion(info.sAbsTime);
         updateTime(absTime);
@@ -148,11 +162,21 @@ void MircastWidget::slotGetPositionInfo(DlnaPositionInfo info)
             qWarning() << "attempts time out! try next.";
             m_attempts = 0;
             m_mircastTimeOut.stop();
-            emit mircastState(-1, QString(""));
+            PlayerEngine *engine =static_cast<PlayerEngine *>(m_pEngine);
+            PlaylistModel *model = engine->getplaylist();
+            PlaylistModel::PlayMode playMode = model->playMode();
+            if (playMode == PlaylistModel::SinglePlay ||
+                    (playMode == PlaylistModel::OrderPlay && model->current() == (model->count() - 1))) {
+                emit mircastState(-1, QString(""));
+                slotExitMircast();
+            } else {
+                model->playNext(true);
+                m_mircastState = Connecting;
+            }
         } else {
             qInfo() << "mircast failed! curret attempts:" << m_attempts << "Max:" << MAXMIRCAST;
             m_attempts++;
-            m_mircastState = Idel;
+            m_mircastState = Connecting;
         }
     }
 }
@@ -165,8 +189,14 @@ void MircastWidget::slotConnectDevice(QModelIndex index)
 
 void MircastWidget::slotStartMircast()
 {
+    PlayerEngine *engine =static_cast<PlayerEngine *>(m_pEngine);
+    if (engine->state() == PlayerEngine::CoreState::Idle) {
+        return;
+    }
+    //TODO：这里需要判断当前投屏设备与选择设备是否一致，不一致切换投屏设备
     if (m_mircastState == MircastState::Screening)
         return;
+    m_mircastState = Connecting;
     startDlnaTp();
 }
 
@@ -286,6 +316,9 @@ void MircastWidget::slotReadyRead()
 
 void MircastWidget::slotExitMircast()
 {
+    qInfo() << __func__ << "Exit Mircast.";
+    if (m_mircastState == Idel)
+        return;
     m_mircastState = Idel;
     stopDlnaTP();
     //    emit closeServer();
@@ -320,8 +353,10 @@ void MircastWidget::initializeHttpServer(int port)
 void MircastWidget::startDlnaTp()
 {
     QPushButton *btn = qobject_cast<QPushButton*>(sender());
-    m_ControlURLPro = btn->property(controlURLPro).toString();
-    m_URLAddrPro = btn->property(urlAddrPro).toString();
+    if (btn) {
+        m_ControlURLPro = btn->property(controlURLPro).toString();
+        m_URLAddrPro = btn->property(urlAddrPro).toString();
+    }
     if(!m_dlnaContentServer)
     {
         qInfo() << "note: please Create httpServer!";
