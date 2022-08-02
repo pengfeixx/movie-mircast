@@ -128,7 +128,7 @@ void CDlnaSoapPost::SoapOperPost(DlnaOper oper,
 {
     QByteArray reqData;
     QString sOperName;
-    qInfo() <<"sLocalUrl: " << sLocalUrl;
+    qDebug() <<"sLocalUrl: " << sLocalUrl;
     if(oper == DLNA_SetAVTransportURI) {
         sOperName = "SetAVTransportURI";
         reqData = dlnaSetAVTransportURI.arg(sLocalUrl).toUtf8();
@@ -166,7 +166,7 @@ void CDlnaSoapPost::SoapOperPost(DlnaOper oper,
      QNetworkReply *reply = m_pNetWorkManager->post(request, reqData);
      connect(reply, &QNetworkReply::finished, [=]() {
          QByteArray data = reply->readAll();
-         qInfo() <<"reply:" << data;
+         qDebug() <<"reply:" << data;
          if(data.contains("SetAVTransportURIResponse")) {
             SoapOperPost(DLNA_Play, ControlURLPro, sHostUrl, sLocalUrl);
          }

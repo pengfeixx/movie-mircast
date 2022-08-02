@@ -3153,7 +3153,8 @@ void MainWindow::mircastSuccess(QString name)
 
 void MainWindow::exitMircast()
 {
-    m_pEngine->pauseResume();
+    if (m_pEngine->state() == PlayerEngine::Paused)
+        m_pEngine->pauseResume();
     updateActionsState();
     m_pToolbox->getMircast()->slotExitMircast();
     m_pMircastShowWidget->hide();
@@ -4469,6 +4470,14 @@ void MainWindow::slotUpdateMircastState(int state, QString msg)
         emit subtitleMenuEnable(false);
         emit soundMenuEnable(false);
     } else if (state == -1) {
+        slotExitMircast();
+    } else if (state == -3) {
+        const QIcon icon = QIcon(":/resources/icons/short_fail.svg");
+        QString sText = QString(tr("Connection failed"));
+        popupAdapter(icon, sText);
+        slotExitMircast();
+    } else if (state == -4) {
+        m_pCommHintWid->updateWithMessage(tr("Mircast disconnected"));
         slotExitMircast();
     }
 }

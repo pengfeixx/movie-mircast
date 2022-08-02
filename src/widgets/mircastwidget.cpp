@@ -28,6 +28,7 @@ MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
     m_bIsToggling = false;
     m_mircastState = Idel;
     m_attempts = 0;
+    m_connectTimeout = 0;
     m_searchTime.setSingleShot(true);
     connect(&m_searchTime, &QTimer::timeout, this, &MircastWidget::slotSearchTimeout);
     connect(&m_mircastTimeOut, &QTimer::timeout, this, &MircastWidget::slotMircastTimeout);
@@ -143,6 +144,9 @@ void MircastWidget::slotSearchTimeout()
 void MircastWidget::slotMircastTimeout()
 {
     m_pDlnaSoapPost->SoapOperPost(DLNA_GetPositionInfo, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl);
+    m_connectTimeout++;
+    if (m_connectTimeout >= 3)
+        emit mircastState(-4, "");
 }
 
 void MircastWidget::slotGetPositionInfo(DlnaPositionInfo info)
@@ -150,6 +154,7 @@ void MircastWidget::slotGetPositionInfo(DlnaPositionInfo info)
     if (m_mircastState == MircastState::Idel)
         return;
 
+    m_connectTimeout--;
     PlayerEngine *engine =static_cast<PlayerEngine *>(m_pEngine);
     PlaylistModel *model = engine->getplaylist();
     PlaylistModel::PlayMode playMode = model->playMode();
@@ -163,21 +168,30 @@ void MircastWidget::slotGetPositionInfo(DlnaPositionInfo info)
         }
         return;
     }
-    if (timeConversion(info.sTrackDuration) > 0) {
+    int duration = timeConversion(info.sTrackDuration);
+    int absTime = timeConversion(info.sAbsTime);
+    if (duration > 0 && absTime > 0) {
         emit mircastState(0, m_devicesList.at(0));
         m_mircastState = MircastState::Screening;
         m_attempts = 0;
     } else {
+        if (duration > 0)
+            emit mircastState(0, m_devicesList.at(0));
         qWarning() << "mircast failed!";
         if (m_attempts >= MAXMIRCAST) {
             qWarning() << "attempts time out! try next.";
             m_attempts = 0;
             m_mircastTimeOut.stop();
+//            if (duration > 0 && absTime <= 0)
+//                emit mircastState(-3, QString(""));
             if (playMode == PlaylistModel::SinglePlay ||
                     (playMode == PlaylistModel::OrderPlay && model->current() == (model->count() - 1))) {
                 emit mircastState(-1, QString(""));
                 slotExitMircast();
+            } else if (playMode == PlaylistModel::SingleLoop) {
+                startDlnaTp();
             } else {
+                emit mircastState(-3, QString(""));
                 model->playNext(true);
                 m_mircastState = Connecting;
             }
@@ -328,6 +342,7 @@ void MircastWidget::slotExitMircast()
     if (m_mircastState == Idel)
         return;
     m_mircastState = Idel;
+    m_connectTimeout = 0;
     stopDlnaTP();
     //    emit closeServer();
 }

@@ -975,6 +975,12 @@ void ToolboxProxy::updateplaylisticon()
     } else {
         m_pListBtn->setIcon(QIcon::fromTheme("dcc_episodes"));
     }
+
+    if (m_pMircastBtn->isChecked() && DGuiApplicationHelper::LightType == DGuiApplicationHelper::instance()->themeType()) {
+        m_pMircastBtn->setIcon(QIcon(":/icons/deepin/builtin/light/checked/mircast_chenked.svg"));
+    } else {
+        m_pMircastBtn->setIcon(QIcon::fromTheme("dcc_mircast"));
+    }
 }
 
 void ToolboxProxy::setup()
@@ -1218,13 +1224,14 @@ void ToolboxProxy::setup()
     m_pMircastBtn->setIcon(QIcon::fromTheme("dcc_mircast", QIcon(":/resources/icons/mircast/mircast.svg")));
     m_pMircastBtn->setIconSize(QSize(36, 36));
     m_pMircastBtn->installEventFilter(this);
+    m_pMircastBtn->setCheckable(true);
     m_pMircastBtn->setFixedSize(50, 50);
     m_pMircastBtn->setFocusPolicy(Qt::TabFocus);
     m_pMircastBtn->initToolTip();
     m_pMircastBtn->setObjectName(MIRVAST_BUTTON);
     m_pMircastBtn->setAccessibleName(MIRVAST_BUTTON);
-
-    connect(m_pMircastBtn, &DIconButton::clicked, m_mircastWidget, &MircastWidget::togglePopup);
+    connect(m_pMircastBtn, SIGNAL(clicked()), signalMapper, SLOT(map()));
+    signalMapper->setMapping(m_pMircastBtn, "mircast");
     connect(m_mircastWidget, &MircastWidget::mircastState, this, &ToolboxProxy::slotUpdateMircast);
 
     _right->addWidget(m_pMircastBtn);
@@ -2130,6 +2137,11 @@ void ToolboxProxy::updatePlayState()
             pa.setColor(DPalette::Dark, QColor(255, 255, 255, 255));
             m_pListBtn->setPalette(pa);
 
+            pa = m_pMircastBtn->palette();
+            pa.setColor(DPalette::Light, QColor(255, 255, 255, 255));
+            pa.setColor(DPalette::Dark, QColor(255, 255, 255, 255));
+            m_pMircastBtn->setPalette(pa);
+
         } else {
             DPalette pa;
             pa = m_pPalyBox->palette();
@@ -2152,6 +2164,11 @@ void ToolboxProxy::updatePlayState()
             pa.setColor(DPalette::Light, QColor(0, 0, 0, 255));
             pa.setColor(DPalette::Dark, QColor(0, 0, 0, 255));
             m_pListBtn->setPalette(pa);
+
+            pa = m_pMircastBtn->palette();
+            pa.setColor(DPalette::Light, QColor(0, 0, 0, 255));
+            pa.setColor(DPalette::Dark, QColor(0, 0, 0, 255));
+            m_pMircastBtn->setPalette(pa);
         }
         m_pPlayBtn->setIcon(QIcon::fromTheme("dcc_suspend", QIcon(":/icons/deepin/builtin/light/normal/suspend_normal.svg")));
         //lmh0910wayland下用这一套tooltip
@@ -2185,6 +2202,11 @@ void ToolboxProxy::updatePlayState()
             pa.setColor(DPalette::Dark, QColor(255, 255, 255, 255));
             m_pListBtn->setPalette(pa);
 
+            pa = m_pMircastBtn->palette();
+            pa.setColor(DPalette::Light, QColor(255, 255, 255, 255));
+            pa.setColor(DPalette::Dark, QColor(255, 255, 255, 255));
+            m_pMircastBtn->setPalette(pa);
+
         } else {
             DPalette pa;
             pa = m_pPalyBox->palette();
@@ -2207,6 +2229,11 @@ void ToolboxProxy::updatePlayState()
             pa.setColor(DPalette::Light, QColor(0, 0, 0, 255));
             pa.setColor(DPalette::Dark, QColor(0, 0, 0, 255));
             m_pListBtn->setPalette(pa);
+
+            pa = m_pMircastBtn->palette();
+            pa.setColor(DPalette::Light, QColor(0, 0, 0, 255));
+            pa.setColor(DPalette::Dark, QColor(0, 0, 0, 255));
+            m_pMircastBtn->setPalette(pa);
 
         }
         //lmh0910wayland下用这一套tooltip
@@ -2304,6 +2331,13 @@ void ToolboxProxy::buttonClicked(QString id)
         m_nClickTime = QDateTime::currentMSecsSinceEpoch();
         m_pMainWindow->requestAction(ActionFactory::ActionKind::TogglePlaylist);
         m_pListBtn->hideToolTip();
+    } else if (id == "mircast") {
+        m_mircastWidget->togglePopup();
+        m_pMircastBtn->setChecked(m_mircastWidget->isVisible());
+        if (m_pMircastBtn->isChecked())
+            m_pMircastBtn->setIcon(QIcon(":/icons/deepin/builtin/light/checked/mircast_chenked.svg"));
+        else
+            m_pMircastBtn->setIcon(QIcon::fromTheme("dcc_mircast"));
     }
 }
 

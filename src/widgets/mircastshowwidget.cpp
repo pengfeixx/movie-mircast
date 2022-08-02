@@ -105,8 +105,8 @@ MircastShowWidget::~MircastShowWidget()
 
 void MircastShowWidget::setDeviceName(QString name)
 {
-    QString display = QString("Display device:%1").arg(name);
-    m_deviceName->setPlainText(customizeText(display));
+    QString display = QString("Display device:%1").arg(customizeText(name));
+    m_deviceName->setPlainText(display);
     QTextBlockFormat format;
     format.setAlignment(Qt::AlignCenter);
     QTextCursor cursor = m_deviceName->textCursor();
@@ -116,7 +116,7 @@ void MircastShowWidget::setDeviceName(QString name)
 
 QString MircastShowWidget::customizeText(QString name)
 {
-    return name > 20 ? name.left(20) + QString("...") : name;
+    return name.length() > 20 ? name.left(20) + QString("...") : name;
 }
 
 ExitButton::ExitButton(QWidget *parent)

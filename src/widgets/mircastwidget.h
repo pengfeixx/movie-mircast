@@ -95,6 +95,7 @@ signals:
     void closeServer();
     void mircastState(int state, QString msg);
     void updateTime(int time);
+
 private:
     /**
      * @brief searchDevices 刷新查找设备
@@ -123,6 +124,7 @@ private:
     CSSDPSearch *m_search;
     MircastState m_mircastState;
     int          m_attempts;
+    int          m_connectTimeout;
 
     QTimer          m_searchTime;
     QTimer          m_mircastTimeOut;
