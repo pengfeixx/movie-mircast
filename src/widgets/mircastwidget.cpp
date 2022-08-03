@@ -11,8 +11,6 @@
 #include <QFileInfo>
 #include <QNetworkInterface>
 
-#include <DPushButton>
-
 #define MIRCASTWIDTH 240
 #define MIRCASTHEIGHT 188
 #define REFRESHTIME 20000
@@ -47,10 +45,16 @@ MircastWidget::MircastWidget(QWidget *mainWindow, void *pEngine)
     projet->setText(tr("Project to"));
     projet->move(20, 8);
 
-    DPushButton *refreshBtn = new DPushButton(topWdiget);
-    refreshBtn->setFixedSize(24, 24);
-    refreshBtn->move(206, 8);
-    connect(refreshBtn, &DPushButton::clicked, this, &MircastWidget::slotRefreshBtnClicked);
+//    DIconButton *refreshBtn = new DIconButton(topWdiget);
+//    refreshBtn->setFixedSize(24, 24);
+//    refreshBtn->move(206, 8);
+//    refreshBtn->setIcon(QIcon::fromTheme("dcc_update", QIcon(":/resources/icons/mircast/mircast.svg")));
+//    connect(refreshBtn, &DPushButton::clicked, this, &MircastWidget::slotRefreshBtnClicked);
+
+    m_refreshBtn = new RefreButtonWidget(QIcon::fromTheme("dcc_update", QIcon(":/resources/icons/mircast/mircast.svg"))
+                                                          , QIcon(":/resources/icons/mircast/spinner.svg"), topWdiget);
+    m_refreshBtn->move(206, 8);
+    connect(m_refreshBtn, &RefreButtonWidget::buttonClicked, this, &MircastWidget::slotRefreshBtnClicked);
 
     QFrame *spliter = new QFrame(this);
     spliter->setAutoFillBackground(true);
@@ -130,6 +134,7 @@ void MircastWidget::slotRefreshBtnClicked()
 {
     initializeHttpServer();
     searchDevices();
+    update();
 }
 
 void MircastWidget::slotSearchTimeout()
@@ -139,6 +144,9 @@ void MircastWidget::slotSearchTimeout()
         updateMircastState(SearchState::NoDevices);
     else
         updateMircastState(SearchState::ListExhibit);
+
+    m_refreshBtn->refershTimeout();
+    update();
 }
 
 void MircastWidget::slotMircastTimeout()
@@ -447,4 +455,48 @@ void MircastWidget::stopDlnaTP()
 void MircastWidget::getPosInfoDlnaTp()
 {
     m_pDlnaSoapPost->SoapOperPost(DLNA_GetPositionInfo, m_ControlURLPro, m_URLAddrPro, m_sLocalUrl);
+}
+
+RefreButtonWidget::RefreButtonWidget(QIcon refreIcon, QIcon loadingIcon, QWidget *parent)
+    : QWidget(parent), m_refreIcon(refreIcon), m_loadingIcon(loadingIcon)
+{
+    setFixedSize(24, 24);
+    m_refreState = true;
+    m_rotate = 0.0;
+
+    connect(&m_rotateTime, &QTimer::timeout, [=](){
+        m_rotate += 14.4;
+    });
+}
+
+void RefreButtonWidget::refershTimeout()
+{
+    m_refreState = true;
+    m_rotateTime.stop();
+    m_rotate = 0.0;
+}
+
+void RefreButtonWidget::paintEvent(QPaintEvent *pEvent)
+{
+    Q_UNUSED(pEvent);
+    QPainter painter(this);
+    QPoint centerPos = rect().center();
+
+    if (m_refreState) {
+        painter.drawPixmap(rect(), QPixmap(m_refreIcon.pixmap(rect().size())));
+    } else {
+        painter.save();
+        painter.translate(centerPos);
+        painter.rotate(m_rotate);
+        painter.drawPixmap(-12, -12, QPixmap(m_loadingIcon.pixmap(rect().size())));
+        painter.restore();
+        update();
+    }
+}
+
+void RefreButtonWidget::mouseReleaseEvent(QMouseEvent *pEvent)
+{
+    m_refreState = false;
+    m_rotateTime.start(40);
+    emit buttonClicked();
 }

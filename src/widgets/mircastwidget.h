@@ -39,6 +39,7 @@
 
 #include <QTimer>
 #include <QScrollArea>
+#include <QIcon>
 
 #include "dlna/cdlnasoappost.h"
 
@@ -49,6 +50,29 @@ class QListWidget;
 class CSSDPSearch;
 class DlnaContentServer;
 class CDlnaSoapPost;
+
+class RefreButtonWidget: public QWidget
+{
+    Q_OBJECT
+public:
+    RefreButtonWidget(QIcon refreIcon, QIcon loadingIcon, QWidget *parent = nullptr);
+
+    void refershTimeout();
+
+protected:
+    void paintEvent(QPaintEvent *pEvent) override;
+    void mouseReleaseEvent(QMouseEvent *pEvent) override;
+
+signals:
+    void buttonClicked();
+
+private:
+    QTimer m_rotateTime;
+    QIcon m_refreIcon;
+    QIcon m_loadingIcon;
+    bool  m_refreState;
+    double m_rotate;
+};
 
 class MircastWidget: public DFloatingWidget
 {
@@ -122,6 +146,7 @@ private:
 //    MircastDevidesModel *m_mircastModel;
     QListWidget *m_listWidget;
     CSSDPSearch *m_search;
+    RefreButtonWidget *m_refreshBtn;
     MircastState m_mircastState;
     int          m_attempts;
     int          m_connectTimeout;

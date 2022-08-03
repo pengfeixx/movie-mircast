@@ -259,5 +259,6 @@
         <file>resources/icons/mircast/icon-exit pressed.svg</file>
         <file>resources/icons/mircast/icon-update.svg</file>
         <file>resources/icons/mircast/mircast.svg</file>
+        <file>resources/icons/mircast/spinner.svg</file>
     </qresource>
 </RCC>
